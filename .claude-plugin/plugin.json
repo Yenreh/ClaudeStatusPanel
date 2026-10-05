@@ -1,0 +1,6 @@
+{
+  "name": "usage-pane",
+  "version": "0.1.0",
+  "description": "Side pane with context window, session, weekly and Fable usage limits",
+  "types": "./types/index.d.ts"
+}
