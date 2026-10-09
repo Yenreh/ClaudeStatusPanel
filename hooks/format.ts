@@ -99,5 +99,32 @@ export const tail = (path: string, width: number): string => {
 // Escapes the characters that would end or break a markdown link's text.
 export const mdEscape = (text: string): string => text.replace(/[\\[\]*_`]/g, c => `\\${c}`)
 
+const LEVELS = ['low', 'medium', 'high', 'xhigh', 'max']
+
+// The level /effort set, from what it printed ("Set effort level to max (this session
+// only): ...") or its argument; null when it went back to the default (settings
+// decide again); undefined when neither says (the bare menu).
+export const effortFromCommand = (text: string | undefined, args: string): string | null | undefined => {
+  const said = /effort level to (\w+)/i.exec(text ?? '')?.[1]?.toLowerCase()
+  const level = said ?? args.trim().toLowerCase()
+  if (LEVELS.includes(level)) return level
+  if (level === 'auto' || level === 'default') return null
+  return undefined
+}
+
+// The last level /effort printed into a transcript tail after `since` (ms); undefined
+// when none did. Lines are JSONL records; a partial first line is skipped.
+export const effortFromTranscript = (tail: string, since: number): string | null | undefined => {
+  let found: string | null | undefined
+  for (const line of tail.split('\n')) {
+    if (!line.includes('local-command-stdout>') || !line.includes('effort level to')) continue
+    const at = Date.parse(/"timestamp":"([^"]+)"/.exec(line)?.[1] ?? '')
+    if (!(at >= since)) continue
+    const said = effortFromCommand(/local-command-stdout>([^<]*)/.exec(line)?.[1], '')
+    if (said !== undefined) found = said
+  }
+  return found
+}
+
 export const shortPath = (path: string, home: string | undefined): string =>
   home && (path === home || path.startsWith(`${home}/`)) ? `~${path.slice(home.length)}` : path

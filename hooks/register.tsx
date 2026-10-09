@@ -1,9 +1,8 @@
 import { atom, read, update } from 'claude-code'
-import type { Register } from 'claude-code'
+import type { EngineInterface, Register } from 'claude-code'
 
 import type { Effort } from '../types'
-
-import { ACCENT, ICON, bar, mdEscape, tail, colorFor, configuredEffort, labelFor, modelName, shortPath, resetsIn, sortLimits, tokens } from './format'
+import { ACCENT, ICON, bar, mdEscape, tail, colorFor, configuredEffort, effortFromCommand, effortFromTranscript, labelFor, modelName, shortPath, resetsIn, sortLimits, tokens } from './format'
 
 const PANE = 'usage'
 const TITLE = 'Usage'
@@ -13,15 +12,36 @@ const DOCK_COLUMNS = 28
 const INLINE_ROWS = 2
 const OPEN = { id: PANE, title: TITLE, columns: DOCK_COLUMNS, rows: INLINE_ROWS }
 const tick = atom({ plugin: 'usage-pane', key: 'tick' } as const, 0)
-// The effort the last main turn ran at (/effort is session-only, not in settings).
+// The level the person last picked with /effort in this session; null, settings decide.
 const effort = atom({ plugin: 'usage-pane', key: 'effort' } as const, null as Effort)
 
-export const register: Register = on => {
-  // Module memory, not state: HOME never changes; limits decide whether the minute tick is needed.
-  let home: string | undefined
-  let hasLimits = false
-  let lastEffort: Effort = null
+// Module memory, not state: HOME never changes; limits decide whether the minute tick is needed.
+let home: string | undefined
+let hasLimits = false
+// Bumped by each /effort, so an older menu watch stops.
+let effortRun = 0
 
+// Reads the transcript's last 32 KB every 2 s for up to a minute after the menu
+// opened, until a pick made after that moment shows up.
+async function watchMenu($: EngineInterface, run: number) {
+  const since = await $.clock.now()
+  const [id, dir] = await Promise.all([$.session.id(), $.env.get('CLAUDE_CONFIG_DIR')])
+  home ??= await $.env.get('HOME')
+  const config = dir ?? `${home}/.claude`
+  for (let i = 0; i < 30 && run === effortRun; i++) {
+    await $.clock.sleep(2000)
+    const { stdout } = await $.process
+      .run(['sh', '-c', 'tail -c 32768 "$1"/projects/*/"$2".jsonl 2>/dev/null', 'sh', config, id])
+      .catch(() => ({ stdout: '' }))
+    const picked = effortFromTranscript(stdout, since)
+    if (picked !== undefined && run === effortRun) {
+      await update($, effort, () => picked)
+      return
+    }
+  }
+}
+
+export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'usage-pane',
@@ -42,13 +62,17 @@ export const register: Register = on => {
     return { text: 'Usage pane opened.' }
   })
 
-  // Once per main turn, never per streamed chunk (turn.step would route every chunk here).
-  on('classic.Stop', async ($, e, next) => {
-    const level = e.effort?.level ?? null
-    // Write only on change: every write redraws the pane.
-    if (level !== null && level !== lastEffort) {
-      lastEffort = level
-      await update($, effort, () => level)
+  // /effort is the only way the level changes mid-session, and max is never saved
+  // to settings. Interactively the command's output never comes back to a hook:
+  // a typed level is read from the argument; the bare menu's pick only lands in
+  // the transcript, so its tail is polled briefly. Runs only on /effort.
+  on('command.run', { command: 'effort' }, async ($, e, next) => {
+    const typed = effortFromCommand(undefined, e.args)
+    const run = ++effortRun
+    if (typed !== undefined) {
+      await update($, effort, () => typed)
+    } else {
+      void watchMenu($, run)
     }
 
     return next(e)
@@ -65,14 +89,15 @@ export const register: Register = on => {
     const { Box, Markdown, Text } = $.ui.resolve(e)
     await read($, tick)
     // Plain usage() is free; a breakdown would re-estimate the context on every draw.
-    const [usage, now, model, sent] = await Promise.all([
+    // Effort: the session's /effort pick, else settings. Not turn.step (it routes every
+    // streamed chunk through this plugin); classic.Stop never fires on the work account.
+    const [usage, now, model, picked] = await Promise.all([
       $.session.usage(),
       $.clock.now(),
       $.session.model(),
       read($, effort),
     ])
-    // Until the first turn ends, show the effort the settings configure.
-    const level = sent ?? configuredEffort(await $.settings.read(), model) ?? 'default'
+    const level = picked ?? configuredEffort(await $.settings.read(), model) ?? 'default'
     const { context, rateLimits, cost } = usage
     const limits = sortLimits(rateLimits)
     hasLimits = limits.length > 0

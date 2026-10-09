@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { ICON, bar, mdEscape, tail, colorFor, configuredEffort, labelFor, modelName, resetsIn, shortPath, sortLimits, tokens } from './format'
+import { ICON, bar, effortFromCommand, effortFromTranscript, mdEscape, tail, colorFor, configuredEffort, labelFor, modelName, resetsIn, shortPath, sortLimits, tokens } from './format'
 
 test('labels the Fable window', () => {
   expect(labelFor('seven_day_overage_included')).toBe(`${ICON.calendar} fable`)
@@ -68,4 +68,20 @@ test('tail drops whole leading folders', () => {
 
 test('mdEscape escapes link text', () => {
   expect(mdEscape('~/a_b/[x]')).toBe('~/a\\_b/\\[x\\]')
+})
+
+test('effortFromCommand reads the level /effort set', () => {
+  expect(effortFromCommand('Set effort level to max (this session only): Maximum', 'max')).toBe('max')
+  expect(effortFromCommand('Set effort level to high: Balanced', '')).toBe('high')
+  expect(effortFromCommand(undefined, 'xhigh')).toBe('xhigh')
+  expect(effortFromCommand(undefined, 'auto')).toBeNull()
+  expect(effortFromCommand(undefined, '')).toBeUndefined()
+})
+
+test('effortFromTranscript reads the menu pick after the menu opened', () => {
+  const line = (at: string, level: string) =>
+    `{"type":"user","message":{"role":"user","content":"<local-command-stdout>Set effort level to ${level} (this session only): x</local-command-stdout>"},"timestamp":"${at}"}`
+  const tail = ['partial"}', line('2026-10-09T19:00:00.000Z', 'low'), line('2026-10-09T19:05:00.000Z', 'max')].join('\n')
+  expect(effortFromTranscript(tail, Date.parse('2026-10-09T19:01:00Z'))).toBe('max')
+  expect(effortFromTranscript(tail, Date.parse('2026-10-09T19:06:00Z'))).toBeUndefined()
 })

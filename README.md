@@ -2,7 +2,7 @@
 
 Claude Code mod (`usage-pane`): a side pane that keeps the chat header info visible, plus usage.
 
-- Model, effort (as the last turn ran), workspace
+- Model, effort (from `/effort`, typed or picked in its menu, else settings), workspace
 - Context window usage
 - Rate limits (session, weekly, Fable) with reset countdowns
 - Session cost
