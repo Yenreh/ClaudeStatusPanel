@@ -1,10 +1,10 @@
 import { expect, test } from 'claude-code/testing'
 
-import { bar, colorFor, configuredEffort, labelFor, modelName, resetsIn, shortPath, sortLimits, tokens } from './format'
+import { ICON, bar, mdEscape, tail, colorFor, configuredEffort, labelFor, modelName, resetsIn, shortPath, sortLimits, tokens } from './format'
 
 test('labels the Fable window', () => {
-  expect(labelFor('seven_day_overage_included')).toBe('Fable (weekly)')
-  expect(labelFor('five_hour')).toBe('Session (5h)')
+  expect(labelFor('seven_day_overage_included')).toBe(`${ICON.calendar} fable`)
+  expect(labelFor('five_hour')).toBe(ICON.clock)
   expect(labelFor('other')).toBe('other')
 })
 
@@ -31,14 +31,15 @@ test('formats tokens and reset times', () => {
   expect(tokens(200_000)).toBe('200k')
   expect(tokens(1_000_000)).toBe('1M')
   const now = Date.parse('2026-10-03T10:00:00Z')
-  expect(resetsIn('2026-10-03T12:10:00Z', now)).toBe('resets in 2h 10m')
-  expect(resetsIn('2026-10-06T13:00:00Z', now)).toBe('resets in 3d 3h')
+  expect(resetsIn('2026-10-03T12:10:00Z', now)).toBe('2h10m')
+  expect(resetsIn('2026-10-06T13:00:00Z', now)).toBe('3d3h')
+  expect(resetsIn('2026-10-03T10:45:00Z', now)).toBe('45m')
   expect(resetsIn(undefined, now)).toBe('')
 })
 
 test('modelName formats Claude ids', () => {
   expect(modelName('claude-opus-5-5')).toBe('Opus 5.5')
-  expect(modelName('claude-sonnet-5-5[1m]')).toBe('Sonnet 5.5 [1m]')
+  expect(modelName('claude-sonnet-5-5[1m]')).toBe('Sonnet 5.5')
   expect(modelName('claude-haiku-4-5-20251001')).toBe('Haiku 4.5')
   expect(modelName('custom-model')).toBe('custom-model')
 })
@@ -54,4 +55,17 @@ test('shortPath abbreviates home', () => {
   expect(shortPath('/home/u/TMP/Claude', '/home/u')).toBe('~/TMP/Claude')
   expect(shortPath('/home/u', '/home/u')).toBe('~')
   expect(shortPath('/home/user2/x', '/home/u')).toBe('/home/user2/x')
+})
+
+test('tail drops whole leading folders', () => {
+  const p = '~/GIT/Muxbit/Buddys/MagentoRepositories'
+  expect(tail(p, 40)).toBe(p)
+  expect(tail(p, 24)).toBe('…/MagentoRepositories')
+  expect(tail(p, 28)).toBe('…/Buddys/MagentoRepositories')
+  expect(tail(p, 10)).toBe('…ositories')
+  expect(tail('~/TMP/Claude', 21)).toBe('~/TMP/Claude')
+})
+
+test('mdEscape escapes link text', () => {
+  expect(mdEscape('~/a_b/[x]')).toBe('~/a\\_b/\\[x\\]')
 })
