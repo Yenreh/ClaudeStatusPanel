@@ -84,7 +84,7 @@ export const configuredEffort = (s: EffortSettings, model: string): string | und
 }
 
 // Fits a path in `width` cells by dropping whole leading folders:
-// "…/Buddys/MagentoRepositories", never a folder cut in half. Only a last
+// "…/Team/SomeRepository", never a folder cut in half. Only a last
 // folder longer than the width is itself cut.
 export const tail = (path: string, width: number): string => {
   if (path.length <= width) return path

@@ -64,10 +64,10 @@ for (const surface of ['terminal', 'desktop'] as const) {
   })
 
   test(`long workspace path keeps its icon on ${surface}`, async ($, on) => {
-    const ui = await mount($, on, surface, 'dock', 25, '/home/u/GIT/Muxbit/Buddys/MagentoRepositories')
+    const ui = await mount($, on, surface, 'dock', 25, '/home/u/GIT/Org/Team/SomeRepository')
     expect(await ui.find({ text: `${ICON.folder} ` })).toBeDefined()
     expect((await ui.find({ key: 'open-folder' }))?.text).toBe(
-      '[…/MagentoRepositories](file:///home/u/GIT/Muxbit/Buddys/MagentoRepositories)',
+      '[…/Team/SomeRepository](file:///home/u/GIT/Org/Team/SomeRepository)',
     )
   })
 
@@ -79,7 +79,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
     })
     const ui = await mount($, on, surface, 'dock', 22)
     await ui.press({ key: 'open-folder', link: { href: 'file:///home/u/TMP/Claude' } })
-    expect(runs).toEqual([['gio', 'open', '/home/u/TMP/Claude']])
+    expect(runs).toEqual([['xdg-open', '/home/u/TMP/Claude']])
   })
 
   test(`inline pane is one compact line on ${surface}`, async ($, on) => {

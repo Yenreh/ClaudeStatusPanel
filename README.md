@@ -13,13 +13,13 @@ Labels are Nerd Font icons: fine in Ghostty (built in); other terminals need a N
 ## Install
 
 ```bash
-git clone git@github.com:Yenreh/ClaudeStatusPanel.git ~/GIT/Utility/claude/ClaudeStatusPanel
+git clone https://github.com/Yenreh/ClaudeStatusPanel.git ~/ClaudeStatusPanel
 ```
 
 Add to `~/.claude/settings.json` (paths separated by `:`):
 
 ```json
-"env": { "CLAUDE_CODE_PLUGIN_DIRS": "~/GIT/Utility/claude/ClaudeStatusPanel" }
+"env": { "CLAUDE_CODE_PLUGIN_DIRS": "~/ClaudeStatusPanel" }
 ```
 
 Restart Claude Code. The pane opens on wide terminals (144+ columns); otherwise run `/usage-pane`. Docked it opens slightly wider than the dock minimum (28 columns); on narrow terminals it sits above the prompt as a one-line summary.
@@ -27,12 +27,16 @@ Restart Claude Code. The pane opens on wide terminals (144+ columns); otherwise 
 ## Update
 
 ```bash
-git -C ~/GIT/Utility/claude/ClaudeStatusPanel pull
+git -C ~/ClaudeStatusPanel pull
 ```
 
 ## Check
 
 ```bash
-claude plugin validate ~/GIT/Utility/claude/ClaudeStatusPanel
-claude plugin test ~/GIT/Utility/claude/ClaudeStatusPanel
+claude plugin validate ~/ClaudeStatusPanel
+claude plugin test ~/ClaudeStatusPanel
 ```
+
+## License
+
+MIT

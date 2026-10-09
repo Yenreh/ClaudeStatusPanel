@@ -44,6 +44,17 @@ async function watchMenu($: EngineInterface, run: number) {
   }
 }
 
+// Opens a folder in the file manager: xdg-open on Linux, else open (macOS).
+async function openFolder($: EngineInterface, path: string) {
+  for (const opener of ['xdg-open', 'open']) {
+    const ok = await $.process
+      .run([opener, path])
+      .then(r => r.exitCode === 0)
+      .catch(() => false)
+    if (ok) return
+  }
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
@@ -180,7 +191,7 @@ export const register: Register = on => {
               key="open-folder"
               dimColor
               text={`[${mdEscape(tail(shortPath(cwd, home), e.props.bodyColumns - 4))}](${folderUrl})`}
-              onLinkPress={() => void $.process.run(['gio', 'open', cwd]).catch(() => undefined)}
+              onLinkPress={() => void openFolder($, cwd)}
             />
           </Box>
         </Box>

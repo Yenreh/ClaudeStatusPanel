@@ -58,11 +58,11 @@ test('shortPath abbreviates home', () => {
 })
 
 test('tail drops whole leading folders', () => {
-  const p = '~/GIT/Muxbit/Buddys/MagentoRepositories'
+  const p = '~/GIT/Org/Team/SomeRepository'
   expect(tail(p, 40)).toBe(p)
-  expect(tail(p, 24)).toBe('…/MagentoRepositories')
-  expect(tail(p, 28)).toBe('…/Buddys/MagentoRepositories')
-  expect(tail(p, 10)).toBe('…ositories')
+  expect(tail(p, 20)).toBe('…/SomeRepository')
+  expect(tail(p, 24)).toBe('…/Team/SomeRepository')
+  expect(tail(p, 10)).toBe('…epository')
   expect(tail('~/TMP/Claude', 21)).toBe('~/TMP/Claude')
 })
 
