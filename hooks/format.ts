@@ -2,6 +2,7 @@
 export const ICON = {
   model: '\uf4bc', // nf-oct-cpu
   folder: '\uf07c', // nf-fa-folder_open
+  instance: '\uf007', // nf-fa-user
   context: '\u{f09d1}', // nf-md-brain
   clock: '\uf017', // nf-fa-clock_o
   calendar: '\uf073', // nf-fa-calendar
@@ -125,6 +126,11 @@ export const effortFromTranscript = (tail: string, since: number): string | null
   }
   return found
 }
+
+// The launcher's name from the config dir: unset is plain "claude",
+// "~/.claude-work" is "claude-work".
+export const instanceName = (configDir: string | undefined): string =>
+  configDir ? (configDir.replace(/\/+$/, '').split('/').pop() ?? '').replace(/^\./, '') || 'claude' : 'claude'
 
 export const shortPath = (path: string, home: string | undefined): string =>
   home && (path === home || path.startsWith(`${home}/`)) ? `~${path.slice(home.length)}` : path

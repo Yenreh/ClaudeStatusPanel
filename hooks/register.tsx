@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Effort } from '../types'
-import { ACCENT, ICON, bar, mdEscape, tail, colorFor, configuredEffort, effortFromCommand, effortFromTranscript, labelFor, modelName, shortPath, resetsIn, sortLimits, tokens } from './format'
+import { ACCENT, ICON, bar, mdEscape, tail, colorFor, configuredEffort, effortFromCommand, effortFromTranscript, instanceName, labelFor, modelName, shortPath, resetsIn, sortLimits, tokens } from './format'
 
 const PANE = 'usage'
 const TITLE = 'Usage'
@@ -15,8 +15,10 @@ const tick = atom({ plugin: 'usage-pane', key: 'tick' } as const, 0)
 // The level the person last picked with /effort in this session; null, settings decide.
 const effort = atom({ plugin: 'usage-pane', key: 'effort' } as const, null as Effort)
 
-// Module memory, not state: HOME never changes; limits decide whether the minute tick is needed.
+// Module memory, not state: HOME and the config dir never change; limits decide
+// whether the minute tick is needed.
 let home: string | undefined
+let configDir: string | undefined | null = null
 let hasLimits = false
 // Bumped by each /effort, so an older menu watch stops.
 let effortRun = 0
@@ -25,9 +27,10 @@ let effortRun = 0
 // opened, until a pick made after that moment shows up.
 async function watchMenu($: EngineInterface, run: number) {
   const since = await $.clock.now()
-  const [id, dir] = await Promise.all([$.session.id(), $.env.get('CLAUDE_CONFIG_DIR')])
+  const id = await $.session.id()
+  if (configDir === null) configDir = await $.env.get('CLAUDE_CONFIG_DIR')
   home ??= await $.env.get('HOME')
-  const config = dir ?? `${home}/.claude`
+  const config = configDir ?? `${home}/.claude`
   for (let i = 0; i < 30 && run === effortRun; i++) {
     await $.clock.sleep(2000)
     const { stdout } = await $.process
@@ -98,6 +101,9 @@ export const register: Register = on => {
       read($, effort),
     ])
     const level = picked ?? configuredEffort(await $.settings.read(), model) ?? 'default'
+    // Which launcher runs this session (claude or claude-work), from its config dir.
+    if (configDir === null) configDir = await $.env.get('CLAUDE_CONFIG_DIR')
+    const instance = instanceName(configDir)
     const { context, rateLimits, cost } = usage
     const limits = sortLimits(rateLimits)
     hasLimits = limits.length > 0
@@ -107,6 +113,9 @@ export const register: Register = on => {
       const sep = <Text dimColor> · </Text>
       return (
         <Text>
+          <Text color={ACCENT}>{`${ICON.instance} `}</Text>
+          <Text>{instance}</Text>
+          {sep}
           <Text color={ACCENT}>{`${ICON.model} ${modelName(model)}`}</Text>
           <Text dimColor>{` ${level}`}</Text>
           {sep}
@@ -152,6 +161,10 @@ export const register: Register = on => {
 
     return (
       <Box flexDirection="column" paddingX={1} gap={1}>
+        <Text wrap="truncate-end">
+          <Text color={ACCENT}>{`${ICON.instance} `}</Text>
+          <Text bold>{instance}</Text>
+        </Text>
         <Box flexDirection="column">
           <Text wrap="truncate-end">
             <Text bold color={ACCENT}>{`${ICON.model} ${modelName(model)}`}</Text>

@@ -28,7 +28,7 @@ const mount = async (
   on('clock.now', () => ({ value: Date.parse('2026-10-03T10:00:00Z') }))
   on('session.model', () => ({ value: 'claude-opus-5-5' }))
   on('session.cwd', () => ({ value: cwd }))
-  on('env.get', () => ({ value: '/home/u' }))
+  on('env.get', (_$, e) => ({ value: e.name === 'HOME' ? '/home/u' : undefined }))
   on('settings.read', () => ({ value: { effortLevel: 'xhigh' } }))
   return $.ui.mount({
     plugin: 'usage-pane',
@@ -57,6 +57,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
     expect(await ui.find({ text: '2h0m' })).toBeDefined()
     expect(await ui.find({ text: '1.50' })).toBeDefined()
     expect(await ui.find({ text: `${ICON.model} Opus 5.5` })).toBeDefined()
+    expect(await ui.find({ text: 'claude' })).toBeDefined()
     expect(await ui.find({ text: / xhigh/ })).toBeDefined()
     expect((await ui.find({ key: 'open-folder' }))?.text).toBe('[~/TMP/Claude](file:///home/u/TMP/Claude)')
     expect(await ui.find({ text: '█'.repeat(9) + '░'.repeat(11) })).toBeDefined()

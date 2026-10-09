@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { ICON, bar, effortFromCommand, effortFromTranscript, mdEscape, tail, colorFor, configuredEffort, labelFor, modelName, resetsIn, shortPath, sortLimits, tokens } from './format'
+import { ICON, bar, effortFromCommand, effortFromTranscript, instanceName, mdEscape, tail, colorFor, configuredEffort, labelFor, modelName, resetsIn, shortPath, sortLimits, tokens } from './format'
 
 test('labels the Fable window', () => {
   expect(labelFor('seven_day_overage_included')).toBe(`${ICON.calendar} fable`)
@@ -84,4 +84,11 @@ test('effortFromTranscript reads the menu pick after the menu opened', () => {
   const tail = ['partial"}', line('2026-10-09T19:00:00.000Z', 'low'), line('2026-10-09T19:05:00.000Z', 'max')].join('\n')
   expect(effortFromTranscript(tail, Date.parse('2026-10-09T19:01:00Z'))).toBe('max')
   expect(effortFromTranscript(tail, Date.parse('2026-10-09T19:06:00Z'))).toBeUndefined()
+})
+
+test('instanceName names the launcher from the config dir', () => {
+  expect(instanceName(undefined)).toBe('claude')
+  expect(instanceName('/home/u/.claude-work')).toBe('claude-work')
+  expect(instanceName('/home/u/.claude-work/')).toBe('claude-work')
+  expect(instanceName('/home/u/.claude')).toBe('claude')
 })
