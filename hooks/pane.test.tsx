@@ -92,3 +92,27 @@ for (const surface of ['terminal', 'desktop'] as const) {
     expect(await ui.find({ text: '~/TMP/Claude' })).toBeUndefined()
   })
 }
+
+test('narrow start shows a status line until the pane is drawn', async ($, on) => {
+  const statuses: (string | undefined)[] = []
+  let isPlaced = false
+  on('ui.open', () => ({ value: { isPlaced: false, reason: 'narrow' } }))
+  on('ui.panes', () => ({ value: [{ id: 'usage', title: 'Usage', isShown: true, isFocused: false, isPlaced }] }))
+  on('ui.status', (_$, e) => {
+    statuses.push(e.text)
+    return { value: undefined }
+  })
+  on('command.register', () => ({ value: undefined }))
+  on('clock.every', () => ({ value: undefined }))
+  on('session.start', (_$, e) => ({ cwd: e.cwd }))
+  on('session.measure', () => ({ changed: [] }))
+  const ui = await mount($, on, 'terminal', 'inline', 60)
+  await $.session.start({ cwd: '/home/u', surface: 'terminal', isInteractive: true } as never)
+  await $.session.measure({ context: USAGE.context, rateLimits: USAGE.rateLimits } as never)
+  expect(statuses.at(-1)).toMatch(/Opus 5\.5 xhigh · .* 45% · .* 30% 2h0m/)
+  expect(statuses.at(-1)).toMatch(/1\.50$/)
+
+  isPlaced = true
+  await ui.redraw()
+  expect(statuses.at(-1)).toBeUndefined()
+})

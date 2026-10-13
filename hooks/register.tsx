@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Effort } from '../types'
-import { ACCENT, ICON, bar, mdEscape, tail, colorFor, configuredEffort, effortFromCommand, effortFromTranscript, instanceName, labelFor, modelName, shortPath, resetsIn, sortLimits, tokens } from './format'
+import { ACCENT, ICON, bar, mdEscape, tail, colorFor, configuredEffort, effortFromCommand, effortFromTranscript, instanceName, labelFor, modelName, shortPath, resetsIn, sortLimits, summary, tokens } from './format'
 
 const PANE = 'usage'
 const TITLE = 'Usage'
@@ -22,6 +22,42 @@ let configDir: string | undefined | null = null
 let hasLimits = false
 // Bumped by each /effort, so an older menu watch stops.
 let effortRun = 0
+// Opened unasked, the pane waits undrawn below 144 columns (110 once opened by
+// hand) until the terminal widens; meanwhile a status line stands in for it.
+let isWaiting = false
+
+// What every view shows. Plain usage() is free; a breakdown would re-estimate
+// the context on every draw. Effort: the session's /effort pick, else settings.
+// Not turn.step (it routes every streamed chunk through this plugin);
+// classic.Stop never fires on the work account.
+async function snapshot($: EngineInterface) {
+  const [usage, now, model, picked] = await Promise.all([
+    $.session.usage(),
+    $.clock.now(),
+    $.session.model(),
+    read($, effort),
+  ])
+  const level = picked ?? configuredEffort(await $.settings.read(), model) ?? 'default'
+  // Which launcher runs this session (claude or claude-work), from its config dir.
+  if (configDir === null) configDir = await $.env.get('CLAUDE_CONFIG_DIR')
+  const limits = sortLimits(usage.rateLimits)
+  hasLimits = limits.length > 0
+  return { ...usage, now, model, level, limits, instance: instanceName(configDir), ctx: usage.context.percent }
+}
+
+// Redraws the pane, or the status line while the pane waits undrawn.
+async function refresh($: EngineInterface) {
+  await update($, tick, n => n + 1)
+  if (!isWaiting) return
+  const pane = (await $.ui.panes()).find(p => p.id === PANE)
+  if (pane?.isPlaced === false) {
+    const s = await snapshot($)
+    $.ui.status(summary({ ...s, usd: s.cost?.usd }))
+  } else {
+    isWaiting = false
+    $.ui.status(undefined)
+  }
+}
 
 // Reads the transcript's last 32 KB every 2 s for up to a minute after the menu
 // opened, until a pick made after that moment shows up.
@@ -39,6 +75,7 @@ async function watchMenu($: EngineInterface, run: number) {
     const picked = effortFromTranscript(stdout, since)
     if (picked !== undefined && run === effortRun) {
       await update($, effort, () => picked)
+      await refresh($)
       return
     }
   }
@@ -61,10 +98,14 @@ export const register: Register = on => {
       name: 'usage-pane',
       description: 'Show context and usage limits in a side pane',
     })
-    void $.ui.open(OPEN)
+    void $.ui.open(OPEN).then(opened => {
+      if (opened.isPlaced) return
+      isWaiting = true
+      return refresh($)
+    })
     // Keep reset countdowns fresh between turns; nothing to refresh without limits.
     $.clock.every(60_000, () => {
-      if (hasLimits) void update($, tick, n => n + 1)
+      if (hasLimits) void refresh($)
     })
 
     return next(e)
@@ -85,6 +126,7 @@ export const register: Register = on => {
     const run = ++effortRun
     if (typed !== undefined) {
       await update($, effort, () => typed)
+      await refresh($)
     } else {
       void watchMenu($, run)
     }
@@ -94,7 +136,7 @@ export const register: Register = on => {
 
   // Fires only when context, limits or cost moved.
   on('session.measure', async ($, e, next) => {
-    await update($, tick, n => n + 1)
+    await refresh($)
 
     return next(e)
   })
@@ -102,23 +144,12 @@ export const register: Register = on => {
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const { Box, Markdown, Text } = $.ui.resolve(e)
     await read($, tick)
-    // Plain usage() is free; a breakdown would re-estimate the context on every draw.
-    // Effort: the session's /effort pick, else settings. Not turn.step (it routes every
-    // streamed chunk through this plugin); classic.Stop never fires on the work account.
-    const [usage, now, model, picked] = await Promise.all([
-      $.session.usage(),
-      $.clock.now(),
-      $.session.model(),
-      read($, effort),
-    ])
-    const level = picked ?? configuredEffort(await $.settings.read(), model) ?? 'default'
-    // Which launcher runs this session (claude or claude-work), from its config dir.
-    if (configDir === null) configDir = await $.env.get('CLAUDE_CONFIG_DIR')
-    const instance = instanceName(configDir)
-    const { context, rateLimits, cost } = usage
-    const limits = sortLimits(rateLimits)
-    hasLimits = limits.length > 0
-    const ctx = context.percent
+    // Drawn at last: the stand-in line goes.
+    if (isWaiting) {
+      isWaiting = false
+      $.ui.status(undefined)
+    }
+    const { context, cost, now, model, level, limits, instance, ctx } = await snapshot($)
 
     if (e.props.placement === 'inline') {
       const sep = <Text dimColor> · </Text>

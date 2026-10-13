@@ -134,3 +134,23 @@ export const instanceName = (configDir: string | undefined): string =>
 
 export const shortPath = (path: string, home: string | undefined): string =>
   home && (path === home || path.startsWith(`${home}/`)) ? `~${path.slice(home.length)}` : path
+
+export type Summary = {
+  instance: string
+  model: string
+  level: string
+  ctx: number | undefined
+  limits: { kind: string; percentUsed: number; resetsAt?: string }[]
+  usd: number | undefined
+  now: number
+}
+
+// The inline pane's line as plain text, for the status line under the prompt.
+export const summary = (s: Summary): string =>
+  [
+    `${ICON.instance} ${s.instance}`,
+    `${ICON.model} ${modelName(s.model)} ${s.level}`,
+    `${ICON.context} ${s.ctx === undefined ? '-' : `${s.ctx}%`}`,
+    ...s.limits.map(l => `${labelFor(l.kind)} ${l.percentUsed}%${l.resetsAt ? ` ${resetsIn(l.resetsAt, s.now)}` : ''}`),
+    ...(s.usd === undefined ? [] : [`${ICON.cost} ${s.usd.toFixed(2)}`]),
+  ].join(' · ')

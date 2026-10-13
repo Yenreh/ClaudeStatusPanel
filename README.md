@@ -22,7 +22,7 @@ Add to `~/.claude/settings.json` (paths separated by `:`):
 "env": { "CLAUDE_CODE_PLUGIN_DIRS": "~/ClaudeStatusPanel" }
 ```
 
-Restart Claude Code. The pane opens on wide terminals (144+ columns); otherwise run `/usage-pane`. Docked it opens slightly wider than the dock minimum (28 columns); on narrow terminals it sits above the prompt as a one-line summary.
+Restart Claude Code. The pane opens on its own from 144 columns (110 once opened by hand); narrower, a one-line summary shows under the prompt until the terminal widens or you run `/usage-pane`. Docked it opens slightly wider than the dock minimum (28 columns); on narrow terminals it sits above the prompt as a one-line summary.
 
 ## Update
 
